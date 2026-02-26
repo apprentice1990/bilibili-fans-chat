@@ -2,6 +2,40 @@
 
 自动获取B站视频评论用户，批量发送私信推广新视频。
 
+## ⭐ 新功能: MediaCrawler集成
+
+**重要更新**: 已集成 [MediaCrawler](https://github.com/NanmiCoder/MediaCrawler),获取用户数量提升 **3.5倍**!
+
+### 效果对比
+
+| 方案 | 60万播放视频获取用户数 | 提升 |
+|------|---------------------|------|
+| 原API方案 | 131位 | 基准 |
+| **MediaCrawler** | **463位** | **+253%** ⬆️ |
+
+### 快速使用MediaCrawler
+
+```bash
+# 方式1: 一键运行(自动使用MediaCrawler)
+python run_campaign.py BV1hf4y1L763 \
+  --video-url "https://www.bilibili.com/video/BV1TRzZBuEg6/" \
+  --title "热河" \
+  --keep-users
+
+# 方式2: 使用已有数据
+python quick_test_send.py
+
+# 方式3: 手动运行MediaCrawler
+cd MediaCrawler
+python main.py --platform bili --lt qrcode --type detail
+cd ..
+python convert_media_crawler_data.py
+```
+
+**详细信息**: 查看 [MEDIACRAWLER_GUIDE.md](MEDIACRAWLER_GUIDE.md) 和 [MEDIACRAWLER_REPORT.md](MEDIACRAWLER_REPORT.md)
+
+---
+
 ## 🚀 快速开始
 
 ### 一键运行（推荐）
@@ -64,14 +98,25 @@ python run_campaign.py BV1TRzZBuEg6 \
 
 ```
 bilibili_fans_chat/
+├── MediaCrawler/                    # MediaCrawler爬虫工具 ⭐ 新增
+│   ├── config/                      # 配置文件
+│   ├── data/bili/json/              # 爬取的原始数据
+│   └── main.py                      # MediaCrawler主程序
 ├── fetch_all_replies_complete.py   # 获取所有评论用户（主评论+子回复）
 ├── batch_send.py                    # 批量发送私信（优化版）
+├── run_campaign.py                  # 完整流程脚本（支持MediaCrawler）
+├── quick_test_send.py               # 快速测试脚本 ⭐ 新增
+├── convert_media_crawler_data.py    # MediaCrawler数据转换工具 ⭐ 新增
 ├── msg_config.py                    # 配置文件
 ├── requirements.txt                 # 依赖包
 ├── README.md                        # 本文档
+├── MEDIACRAWLER_GUIDE.md            # MediaCrawler使用指南 ⭐ 新增
+├── MEDIACRAWLER_REPORT.md           # MediaCrawler测试报告 ⭐ 新增
+├── TROUBLESHOOTING.md               # 问题诊断文档 ⭐ 新增
 ├── data/                            # 数据目录
 │   ├── users/                       # 用户数据
-│   │   └── {bv_id}_complete_{timestamp}.json  # 评论用户列表
+│   │   ├── {bv_id}_complete_{timestamp}.json     # API方案数据
+│   │   └── {bv_id}_mediacrawler_{timestamp}.json # MediaCrawler数据
 │   └── sent_records/                # 发送记录
 │       └── sent_{timestamp}.json    # 发送记录文件
 └── templates/
@@ -103,6 +148,73 @@ cookies文件位置：
 ---
 
 ## 使用方法
+
+### 方案选择
+
+**推荐: 使用MediaCrawler** (获取3.5倍用户)
+- ✅ 适用于高播放量视频(>10万)
+- ✅ 突破B站API限制
+- ✅ 数据更全面
+- ⚠️ 首次需扫码登录
+
+**备选: 使用原API方案** (快速测试)
+- ✅ 快速方便
+- ✅ 无需额外配置
+- ❌ 受API限制,用户数量较少
+
+### 方案A: 使用MediaCrawler (推荐)
+
+#### 方式1: 自动运行(最简单)
+
+```bash
+# 自动使用MediaCrawler爬取并发送
+python run_campaign.py BV1hf4y1L763 \
+  --video-url "https://www.bilibili.com/video/BV1TRzZBuEg6/" \
+  --title "热河" \
+  --keep-users
+```
+
+首次运行时会:
+1. 检测到没有MediaCrawler数据
+2. 询问是否运行MediaCrawler
+3. 自动打开浏览器并显示二维码
+4. 用B站App扫码登录
+5. 自动爬取并转换数据
+6. 开始发送私信
+
+#### 方式2: 使用已有数据
+
+如果已经运行过MediaCrawler,直接使用:
+
+```bash
+python quick_test_send.py
+```
+
+会自动检测并使用最新的MediaCrawler数据。
+
+#### 方式3: 手动运行
+
+```bash
+# 1. 配置视频BV号
+# 编辑 MediaCrawler/config/bilibili_config.py
+BILI_SPECIFIED_ID_LIST = ["BV1hf4y1L763"]
+
+# 2. 运行MediaCrawler(首次需扫码登录)
+cd MediaCrawler
+python main.py --platform bili --lt qrcode --type detail
+
+# 3. 转换数据
+cd ..
+python convert_media_crawler_data.py
+
+# 4. 发送私信
+python batch_send.py \
+  --users data/users/BV1hf4y1L763_mediacrawler_*.json \
+  --video-url "https://www.bilibili.com/video/BV1TRzZBuEg6/" \
+  --title "热河"
+```
+
+### 方案B: 使用原API方案
 
 ### 步骤1：获取评论用户
 
@@ -403,6 +515,43 @@ python batch_send.py \
 
 ## 常见问题
 
+### 0. MediaCrawler相关问题 ⭐
+
+**Q: 为什么推荐使用MediaCrawler?**
+A: MediaCrawler可以获取3.5倍的用户数量(463位 vs 131位),特别适合高播放量视频。
+
+**Q: MediaCrawler首次使用需要什么?**
+A:
+1. 首次需要扫码登录(20秒内用B站App扫描二维码)
+2. 之后会缓存登录状态,无需重复登录
+3. 需要安装Chromium浏览器驱动(约135MB)
+
+**Q: 如何选择使用哪种方案?**
+A:
+- **高播放量视频(>10万)** → 使用MediaCrawler
+- **快速测试** → 使用原API方案(加 `--use-api` 参数)
+
+**Q: run_campaign.py会自动使用MediaCrawler吗?**
+A: 是的!新版 `run_campaign.py` 会:
+1. 自动检测MediaCrawler数据
+2. 如果存在,询问是否使用
+3. 如果不存在,询问是否运行MediaCrawler
+
+**Q: 为什么只有131位用户,应该有更多?**
+A: 可能使用了原API方案。解决方法:
+```bash
+# 方式1: 使用快速测试
+python quick_test_send.py
+
+# 方式2: 强制使用MediaCrawler数据
+python run_campaign.py BV1hf4y1L763 \
+  --video-url "..." \
+  --title "..." \
+  --keep-users
+```
+
+详细说明: 查看 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+
 ### 1. 获取到的用户数量不对
 
 **问题**：只获取到19位用户，但视频有更多评论
@@ -602,6 +751,31 @@ pip install --upgrade webdriver-manager
 ---
 
 ## 开发历史
+
+### v2.0 (2026-02-26) - MediaCrawler集成 ⭐
+
+**重大更新**: 集成MediaCrawler,获取用户数量提升3.5倍!
+
+**新增功能**：
+- ✅ 集成MediaCrawler爬虫工具
+- ✅ 数据格式自动转换
+- ✅ 智能方案选择(MediaCrawler优先)
+- ✅ 快速测试脚本(`quick_test_send.py`)
+- ✅ 完整文档和测试报告
+
+**新增文件**：
+- `MediaCrawler/` - MediaCrawler爬虫工具
+- `quick_test_send.py` - 快速测试脚本
+- `convert_media_crawler_data.py` - 数据转换工具
+- `MEDIACRAWLER_GUIDE.md` - 使用指南
+- `MEDIACRAWLER_REPORT.md` - 测试报告
+- `TROUBLESHOOTING.md` - 问题诊断
+
+**测试结果**：
+- 视频BV1hf4y1L763(60万播放):
+  - 原API方案: 131位用户
+  - MediaCrawler: 463位用户
+  - **提升: +253%**
 
 ### v1.0 (2026-02-26)
 

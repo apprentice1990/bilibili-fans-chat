@@ -125,58 +125,92 @@ def fetch_all_comment_users_complete(bv_id, max_users=1000):
     }
 
     # 获取所有评论
-    print("[步骤3] 获取主评论...")
+    print("[步骤3] 获取主评论（分页）...")
     print("="*60)
 
     users = {}
     seen = set()
 
-    # 获取主评论
-    main_url = f"https://api.bilibili.com/x/v2/reply/main?oid={aid}&type=1&mode=3&pn=1&ps=20"
+    # 分页获取主评论
+    page = 1
+    page_size = 20  # 每页20条主评论
+    max_pages = 50  # 最多50页主评论（1000条主评论）
 
-    try:
-        response = session.get(main_url, headers=headers, timeout=10)
-        data = response.json()
+    total_main_count = 0
 
-        if data.get('code') == 0:
-            main_replies = data['data'].get('replies', [])
+    while page <= max_pages:
+        print(f"\n[第{page}页] 获取主评论...")
 
-            for i, reply in enumerate(main_replies, 1):
-                member = reply.get('member', {})
-                user_id = str(member.get('mid', ''))
-                nickname = member.get('uname', '')
-                content = reply.get('content', {}).get('message', '')
-                count = reply.get('count', 0)  # 子回复数量
-                rpid = reply.get('rpid', '')
-                rc = reply.get('rcount', 0)  # rcount might be the readable count
+        main_url = f"https://api.bilibili.com/x/v2/reply/main?oid={aid}&type=1&mode=3&pn={page}&ps={page_size}"
 
-                # 主评论用户
-                if user_id and user_id not in seen:
-                    seen.add(user_id)
-                    users[user_id] = {
-                        "user_id": user_id,
-                        "nickname": nickname,
-                        "comment": content[:100] if content else ""
-                    }
+        try:
+            response = session.get(main_url, headers=headers, timeout=10)
+            data = response.json()
 
-                print(f"\n[{i}/{len(main_replies)}] {nickname} (子回复: {count})")
+            if data.get('code') == 0:
+                main_replies = data['data'].get('replies', [])
 
-                # 获取所有子回复
-                if count > 0:
-                    sub_new = fetch_sub_replies_full(session, aid, rpid, headers, seen, users)
-                    print(f"    └─ 新增 {sub_new} 位用户")
+                if not main_replies:
+                    print(f"[完成] 第{page}页没有更多主评论")
+                    break
+
+                print(f"[成功] 第{page}页获取到 {len(main_replies)} 条主评论")
+
+                for i, reply in enumerate(main_replies, 1):
+                    global_idx = total_main_count + i
+                    member = reply.get('member', {})
+                    user_id = str(member.get('mid', ''))
+                    nickname = member.get('uname', '')
+                    content = reply.get('content', {}).get('message', '')
+                    count = reply.get('count', 0)  # 子回复数量
+                    rpid = reply.get('rpid', '')
+
+                    # 主评论用户
+                    if user_id and user_id not in seen:
+                        seen.add(user_id)
+                        users[user_id] = {
+                            "user_id": user_id,
+                            "nickname": nickname,
+                            "comment": content[:100] if content else ""
+                        }
+
+                    print(f"\n[{global_idx}] {nickname} (子回复: {count})")
+
+                    # 获取所有子回复
+                    if count > 0:
+                        sub_new = fetch_sub_replies_full(session, aid, rpid, headers, seen, users)
+                        print(f"    └─ 新增 {sub_new} 位用户")
+
+                    # 检查是否达到目标
+                    if len(users) >= max_users:
+                        print(f"\n[提示] 已达到目标用户数 {max_users}")
+                        break
+
+                total_main_count += len(main_replies)
+                print(f"\n[进度] 已处理 {total_main_count} 条主评论，获取到 {len(users)} 位用户")
 
                 # 检查是否达到目标
                 if len(users) >= max_users:
-                    print(f"\n[提示] 已达到目标用户数 {max_users}")
+                    print(f"\n[完成] 已达到目标用户数 {max_users}")
                     break
 
-            print(f"\n[主评论] 完成，共 {len(main_replies)} 条")
+                # 检查是否是最后一页
+                cursor_data = data['data'].get('cursor')
+                if cursor_data and cursor_data.get('is_end', False):
+                    print(f"\n[完成] 已到最后一页")
+                    break
 
-    except Exception as e:
-        print(f"[错误] 获取主评论失败: {e}")
-        import traceback
-        traceback.print_exc()
+                page += 1
+                time.sleep(0.5)  # 避免请求过快
+            else:
+                print(f"[错误] API返回错误: {data.get('message', 'Unknown error')}")
+                break
+
+        except Exception as e:
+            print(f"[错误] 获取主评论失败: {e}")
+            import traceback
+            traceback.print_exc()
+            break
 
     print("="*60)
     print(f"\n[完成] 共获取 {len(users)} 位用户")

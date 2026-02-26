@@ -1,0 +1,11 @@
+# B站私信推广工具 - Python依赖包
+
+# 浏览器自动化
+selenium>=4.8.0
+webdriver-manager>=3.8.0
+
+# HTTP请求
+requests>=2.28.0
+
+# 环境变量管理
+python-dotenv>=0.19.0
